@@ -1,13 +1,15 @@
-export function toggleProduct(state, productId) {
-  if (state[productId]?.selected) {
-    const next = { ...state }
-    delete next[productId]
-    return next
+export function toggleProduct(state, product) {
+  const productId = product.id
+  if (state[productId]) {
+    return {
+      ...state,
+      [productId]: { ...state[productId], selected: !state[productId].selected },
+    }
   }
 
   return {
     ...state,
-    [productId]: { selected: true, quantity: 1, note: '' },
+    [productId]: { selected: true, quantity: product.defaultQuantity, note: '' },
   }
 }
 

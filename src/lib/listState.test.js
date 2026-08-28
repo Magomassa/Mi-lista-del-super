@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { changeQuantity, toggleProduct, updateProduct } from './listState'
 
 describe('list state', () => {
-  it('starts a selected product with quantity one', () => {
-    expect(toggleProduct({}, 'leche')).toEqual({
-      leche: { selected: true, quantity: 1, note: '' },
+  it('starts a selected product with its explicit default quantity', () => {
+    expect(toggleProduct({}, { id: 'jabon-pan-blanco', defaultQuantity: 2 })).toEqual({
+      'jabon-pan-blanco': { selected: true, quantity: 2, note: '' },
     })
   })
 
@@ -16,9 +16,11 @@ describe('list state', () => {
     expect(changeQuantity(selected, 'leche', -1).leche.quantity).toBe(1)
   })
 
-  it('removes a product when it is unselected', () => {
+  it('keeps quantity and note when a product is unselected and reselected', () => {
     const selected = { leche: { selected: true, quantity: 1, note: '' } }
-    expect(toggleProduct(selected, 'leche')).toEqual({})
+    const unselected = toggleProduct(selected, { id: 'leche', defaultQuantity: 4 })
+    expect(unselected.leche).toEqual({ selected: false, quantity: 1, note: '' })
+    expect(toggleProduct(unselected, { id: 'leche', defaultQuantity: 4 }).leche.quantity).toBe(1)
   })
 
   it('updates a product note without changing its quantity', () => {
