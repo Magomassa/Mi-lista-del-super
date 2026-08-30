@@ -52,9 +52,11 @@ Cada artículo personalizado se guardará en el mismo mapa del borrador con esta
 }
 ```
 
-El ID se generará al crear el artículo y nunca cambiará al editarlo. Un diálogo con el mismo estilo visual de los existentes permitirá agregar y editar. La edición cambiará solamente `name`; conservará ID, selección, cantidad y observación. El nombre no podrá quedar vacío. Eliminar requerirá confirmación.
+El ID se generará una sola vez mediante `crypto.randomUUID()` cuando esté disponible, con un fallback que combine tiempo y aleatoriedad criptográfica o pseudoaleatoria para mantener un riesgo práctico de colisión despreciable. Nunca cambiará al editar el artículo. Un diálogo con el mismo estilo visual de los existentes permitirá agregar y editar. La edición cambiará solamente `name`; conservará ID, selección, cantidad y observación. El nombre no podrá quedar vacío. Eliminar requerirá confirmación.
 
 `Otros` se construirá desde las entradas `custom: true` del borrador, aparecerá después de todas las categorías normales y no tendrá selección masiva. Si no hay personalizados, sólo se mostrará su encabezado y el botón `+ Agregar artículo`. Los artículos usarán los mismos controles de selección, cantidad, observación y accesibilidad que los normales, además de acciones secundarias para editar y eliminar.
+
+El contador general contará todas las entradas con `selected === true`, tanto normales como personalizadas. La exclusión de `Otros` se aplicará únicamente a las acciones de selección masiva, nunca al contador.
 
 ## Búsqueda, resumen y texto
 
@@ -64,9 +66,28 @@ El resumen y `formatList` recibirán una representación combinada en la que `Ot
 
 ## Borrador, última compra y plantillas
 
-Los personalizados forman parte del mapa del borrador, por lo que la persistencia V2 existente los conservará automáticamente. Vaciar el borrador mediante `Lista nueva` los eliminará.
+Los personalizados forman parte del mapa del borrador. Antes de implementar se revisará `storage.js` y cualquier normalización existente. La persistencia admitirá y conservará explícitamente estas dos formas válidas:
+
+```js
+// Producto normal
+{ selected, quantity, note }
+
+// Artículo personalizado
+{ id, name, custom: true, selected, quantity, note }
+```
+
+La lectura sanitizará entradas individualmente: conservará sólo valores con tipos y cantidades válidos, y cuando `custom === true` exigirá además `id` y `name` no vacíos. Los borradores, última compra y plantillas V2 existentes sin campos personalizados seguirán siendo válidos. JSON corrupto, contenedores con forma incorrecta y entradas inválidas se ignorarán sin romper la aplicación. Vaciar el borrador mediante `Lista nueva` eliminará los personalizados.
 
 Los snapshots profundos de última compra y plantillas incluirán todas las entradas personalizadas. Cargar un snapshot producirá otra copia profunda. Editar o eliminar un artículo cargado cambiará únicamente el borrador actual; la plantilla original seguirá intacta hasta que el usuario confirme `Actualizar`.
+
+Antes de cargar una plantilla o última compra se considerará que el borrador tiene contenido relevante si contiene al menos uno de estos casos:
+
+- una entrada seleccionada;
+- un artículo personalizado, incluso deseleccionado;
+- una observación no vacía;
+- una cantidad distinta de la cantidad inicial del producto normal.
+
+Si existe contenido relevante se pedirá confirmación antes de reemplazarlo. La comparación de cantidades normales usará el `defaultQuantity` del catálogo; las entradas antiguas sin cambios no provocarán confirmaciones innecesarias.
 
 ## Componentes y módulos
 
@@ -84,7 +105,7 @@ Los snapshots profundos de última compra y plantillas incluirán todas las entr
 - No se permitirá crear ni guardar un nombre personalizado vacío.
 - La selección masiva sobre conjuntos vacíos no modificará el borrador.
 - Los artículos personalizados deseleccionados seguirán existiendo hasta eliminación explícita o `Lista nueva`.
-- Cargar snapshots seguirá respetando la confirmación existente antes de reemplazar un borrador seleccionado.
+- Cargar snapshots pedirá confirmación ante cualquier contenido relevante, incluso un personalizado deseleccionado, una observación o una cantidad modificada.
 
 ## Pruebas y aceptación
 
@@ -94,7 +115,8 @@ Las pruebas verificarán:
 - selección/deselección general y por categoría, cantidades predeterminadas y exclusión de personalizados;
 - creación, edición con ID estable, cantidad, observación, búsqueda y eliminación de personalizados;
 - orden final de `Otros`, resumen, texto generado e impresión clara;
-- persistencia del borrador, inclusión en última compra y plantillas, y aislamiento tras cargar una plantilla;
+- persistencia y sanitización compatible de entradas normales V2 y personalizadas, inclusión en última compra y plantillas, y aislamiento tras cargar una plantilla;
+- contador total incluyendo personalizados y detección de borrador relevante antes de reemplazarlo;
 - regresiones de compartir, copiar, imprimir, listas guardadas y catálogo.
 
 La etapa termina únicamente con `npm test`, `npm run lint` y `npm run build` exitosos, recursos PWA generados y servidor local respondiendo correctamente.
