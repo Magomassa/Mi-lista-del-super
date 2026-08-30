@@ -246,7 +246,7 @@ Run: `npm.cmd test -- src/App.test.jsx`
 
 - [ ] **Step 3: Escribir pruebas fallidas de selección masiva**
 
-Comprobar que la acción general selecciona exactamente los 70 productos normales, conserva una cantidad editada, no selecciona un personalizado desmarcado y luego deselecciona los 70. Para categoría, comprobar que limpieza cambia y tocador/comestibles no. Comprobar ausencia de acción masiva dentro de `Otros`.
+Calcular `const normalProductCount = categories.flatMap((category) => category.products).length`. Comprobar que la acción general selecciona exactamente `normalProductCount` productos normales, conserva una cantidad editada, no selecciona un personalizado desmarcado y luego deselecciona esos `normalProductCount`. Para categoría, derivar también el total desde `category.products.length` y comprobar que limpieza cambia mientras tocador/comestibles no. Comprobar ausencia de acción masiva dentro de `Otros`.
 
 - [ ] **Step 4: Integrar acciones masivas**
 
