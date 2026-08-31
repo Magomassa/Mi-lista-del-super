@@ -35,4 +35,19 @@ describe('formatList', () => {
     expect(output).not.toContain('LÁCTEOS')
     expect(output).not.toContain('Fideos')
   })
+
+  it('places selected custom items in Otros at the end', () => {
+    const state = {
+      arroz: { selected: true, quantity: 1, note: '' },
+      toast: { id: 'toast', name: 'Tostadora', custom: true, selected: true, quantity: 1, note: 'negra' },
+    }
+    const output = formatList(catalog, state, new Date(2026, 7, 30))
+    expect(output).toContain('OTROS\n• Tostadora — 1 (negra)')
+    expect(output.indexOf('OTROS')).toBeGreaterThan(output.indexOf('ALMACÉN'))
+  })
+
+  it('omits Otros when every custom item is unselected', () => {
+    const state = { toast: { id: 'toast', name: 'Tostadora', custom: true, selected: false, quantity: 1, note: '' } }
+    expect(formatList(catalog, state, new Date(2026, 7, 30))).not.toContain('OTROS')
+  })
 })

@@ -7,7 +7,7 @@ function formatDate(date) {
 }
 
 export function formatList(categories, state, date = new Date()) {
-  const sections = categories.flatMap((category) => {
+  const sections = buildDisplayCategories(categories, state).flatMap((category) => {
     const items = category.products.flatMap((product) => {
       const entry = state[product.id]
       if (!entry?.selected) return []
@@ -19,4 +19,11 @@ export function formatList(categories, state, date = new Date()) {
   })
 
   return [`LISTA DEL SÚPER — ${formatDate(date)}`, ...sections].join('\n\n')
+}
+
+export function buildDisplayCategories(categories, state) {
+  const customProducts = Object.values(state).filter((item) => item?.custom === true)
+  return customProducts.length
+    ? [...categories, { id: 'otros', name: 'Otros', products: customProducts }]
+    : categories
 }

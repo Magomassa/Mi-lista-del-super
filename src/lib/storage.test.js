@@ -65,4 +65,30 @@ describe('V2 storage', () => {
     expect(() => saveTemplate('Habitual', selected)).not.toThrow()
     setItem.mockRestore()
   })
+
+  it('sanitizes normal and custom entries without breaking V2 drafts', () => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      normal: { selected: true, quantity: 2, note: '' },
+      custom: { id: 'custom', name: 'Tostadora', custom: true, selected: false, quantity: 1, note: 'negra' },
+      brokenCustom: { custom: true, selected: true, quantity: 1, note: '' },
+      brokenNormal: { selected: 'yes', quantity: 0, note: null },
+    }))
+    expect(loadDraft()).toEqual({
+      normal: { selected: true, quantity: 2, note: '' },
+      custom: { id: 'custom', name: 'Tostadora', custom: true, selected: false, quantity: 1, note: 'negra' },
+    })
+  })
+
+  it('sanitizes custom items in last purchase and templates', () => {
+    const validCustom = { id: 'custom', name: 'Extra', custom: true, selected: true, quantity: 1, note: '' }
+    localStorage.setItem(LAST_PURCHASE_KEY, JSON.stringify({ custom: validCustom, bad: { custom: true } }))
+    localStorage.setItem(TEMPLATES_KEY, JSON.stringify([
+      { id: 'template-1', name: 'Habitual', items: { normal: { selected: false, quantity: 1, note: '' }, custom: validCustom } },
+      { id: 2, name: '', items: {} },
+    ]))
+    expect(loadLastPurchase()).toEqual({ custom: validCustom })
+    expect(loadTemplates()).toEqual([
+      { id: 'template-1', name: 'Habitual', items: { normal: { selected: false, quantity: 1, note: '' }, custom: validCustom } },
+    ])
+  })
 })

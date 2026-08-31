@@ -1,9 +1,11 @@
+import { buildDisplayCategories } from '../lib/formatList'
+
 function dateLabel(date = new Date()) {
   return new Intl.DateTimeFormat('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)
 }
 
 export default function Summary({ categories, list, message, onBack, onCopy, onShare, onPrint, onClear }) {
-  const selectedCategories = categories.flatMap((category) => {
+  const selectedCategories = buildDisplayCategories(categories, list).flatMap((category) => {
     const products = category.products.filter((product) => list[product.id]?.selected)
     return products.length ? [{ ...category, products }] : []
   })

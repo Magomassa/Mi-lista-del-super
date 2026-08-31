@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { categories } from './data/catalog'
-import { changeQuantity, toggleProduct, updateProduct } from './lib/listState'
+import { areAllSelected, changeQuantity, createCustomItem, deleteCustomItem, getCustomItems, hasRelevantDraft, renameCustomItem, toggleProduct, toggleProducts, updateProduct } from './lib/listState'
 import { formatList } from './lib/formatList'
+import { applyTheme, resolveTheme, saveTheme } from './lib/theme'
 import { deleteTemplate, loadDraft, loadLastPurchase, loadTemplates, saveDraft, saveLastPurchase, saveTemplate, updateTemplate } from './lib/storage'
-import SearchBar from './components/SearchBar'
 import CategorySection from './components/CategorySection'
-import Summary from './components/Summary'
-import SavedLists from './components/SavedLists'
+import CustomItemDialog from './components/CustomItemDialog'
+import CustomItemsSection from './components/CustomItemsSection'
 import SaveTemplateDialog from './components/SaveTemplateDialog'
+import SavedLists from './components/SavedLists'
+import SearchBar from './components/SearchBar'
+import Summary from './components/Summary'
+import ThemeToggle from './components/ThemeToggle'
 
 const clone = (value) => JSON.parse(JSON.stringify(value))
-const hasSelections = (list) => Object.values(list).some((item) => item?.selected)
+const normalProducts = categories.flatMap((category) => category.products)
 
 function copyWithFallback(text) {
   if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(text)
@@ -29,20 +33,31 @@ export default function App() {
   const [list, setList] = useState(loadDraft)
   const [templates, setTemplates] = useState(loadTemplates)
   const [lastPurchase, setLastPurchase] = useState(loadLastPurchase)
+  const [theme, setTheme] = useState(resolveTheme)
   const [search, setSearch] = useState('')
   const [view, setView] = useState('products')
   const [message, setMessage] = useState('')
   const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [customDialog, setCustomDialog] = useState(undefined)
 
   useEffect(() => saveDraft(list), [list])
+  useEffect(() => applyTheme(theme), [theme])
 
   const selectedCount = Object.values(list).filter((item) => item?.selected).length
   const normalizedSearch = search.trim().toLocaleLowerCase('es-AR')
+  const customItems = getCustomItems(list)
+  const visibleCustomItems = customItems.filter((item) => item.name.toLocaleLowerCase('es-AR').includes(normalizedSearch))
   const visibleCategories = useMemo(() => categories.flatMap((category) => {
     const products = category.products.filter((product) => product.name.toLocaleLowerCase('es-AR').includes(normalizedSearch))
     return products.length ? [{ ...category, products }] : []
   }), [normalizedSearch])
   const text = formatList(categories, list)
+
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    saveTheme(next)
+  }
 
   function rememberPurchase() {
     const snapshot = clone(list)
@@ -90,7 +105,7 @@ export default function App() {
   }
 
   function handleLoad(snapshot) {
-    if (hasSelections(list) && !window.confirm('La lista actual tiene productos. ¿Querés reemplazarla?')) return
+    if (hasRelevantDraft(list, categories) && !window.confirm('La lista actual tiene contenido. ¿Querés reemplazarla?')) return
     setList(clone(snapshot))
     setMessage('Lista cargada')
     setView('products')
@@ -117,6 +132,16 @@ export default function App() {
     setMessage('Lista guardada eliminada')
   }
 
+  function saveCustomItem(name) {
+    setList((current) => customDialog ? renameCustomItem(current, customDialog.id, name) : createCustomItem(current, name))
+    setCustomDialog(undefined)
+  }
+
+  function removeCustomItem(item) {
+    if (!window.confirm(`¿Querés eliminar “${item.name}”?`)) return
+    setList((current) => deleteCustomItem(current, item.id))
+  }
+
   if (view === 'summary') {
     return <Summary categories={categories} list={list} message={message} onBack={() => setView('products')} onCopy={handleCopy} onShare={handleShare} onPrint={handlePrint} onClear={handleClear} />
   }
@@ -130,15 +155,17 @@ export default function App() {
       <header className="app-header">
         <div className="brand-mark" aria-hidden="true">✓</div>
         <div className="brand-copy"><h1>Lista del Súper</h1><p>¿Qué hace falta comprar?</p></div>
-        <button className="saved-lists-entry" type="button" onClick={() => setView('saved')}>Listas guardadas</button>
+        <div className="header-actions"><ThemeToggle theme={theme} onToggle={toggleTheme} /><button className="saved-lists-entry" type="button" onClick={() => setView('saved')}>Listas guardadas</button></div>
       </header>
       <main className="products-view">
         <SearchBar value={search} onChange={setSearch} />
-        <div className="helper-row"><span>Elegí los productos</span>{selectedCount > 0 && <strong>{selectedCount} seleccionados</strong>}</div>
-        {visibleCategories.map((category) => <CategorySection key={category.id} category={category} list={list} onToggle={(product) => setList((current) => toggleProduct(current, product))} onQuantity={(id, delta) => setList((current) => changeQuantity(current, id, delta))} onUpdate={(id, patch) => setList((current) => updateProduct(current, id, patch))} />)}
-        {!visibleCategories.length && <p className="empty-state">No encontramos productos con ese nombre.</p>}
+        <div className="helper-row"><span>Elegí los productos</span><div className="selection-tools">{selectedCount > 0 && <strong>{selectedCount} seleccionados</strong>}<button type="button" onClick={() => setList((current) => toggleProducts(current, normalProducts))}>{areAllSelected(list, normalProducts) ? 'Deseleccionar todo' : 'Seleccionar todo'}</button></div></div>
+        {visibleCategories.map((category) => <CategorySection key={category.id} category={category} list={list} allSelected={areAllSelected(list, category.products)} onToggleAll={() => setList((current) => toggleProducts(current, category.products))} onToggle={(product) => setList((current) => toggleProduct(current, product))} onQuantity={(id, delta) => setList((current) => changeQuantity(current, id, delta))} onUpdate={(id, patch) => setList((current) => updateProduct(current, id, patch))} />)}
+        {!visibleCategories.length && !visibleCustomItems.length && normalizedSearch && <p className="empty-state">No encontramos productos con ese nombre.</p>}
+        <CustomItemsSection items={visibleCustomItems} onAdd={() => setCustomDialog(null)} onToggle={(item) => setList((current) => toggleProduct(current, item))} onQuantity={(id, delta) => setList((current) => changeQuantity(current, id, delta))} onUpdate={(id, patch) => setList((current) => updateProduct(current, id, patch))} onEdit={setCustomDialog} onDelete={removeCustomItem} />
       </main>
       <div className="bottom-action"><button className="primary-button" type="button" disabled={!selectedCount} onClick={() => setView('summary')}>Ver lista ({selectedCount})</button></div>
+      {customDialog !== undefined && <CustomItemDialog item={customDialog} onCancel={() => setCustomDialog(undefined)} onSave={saveCustomItem} />}
     </div>
   )
 }

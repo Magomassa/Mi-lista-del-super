@@ -1,4 +1,4 @@
-export default function ProductRow({ product, entry, onToggle, onQuantity, onUpdate }) {
+export default function ProductRow({ product, entry, onToggle, onQuantity, onUpdate, onEdit, onDelete }) {
   const selected = Boolean(entry?.selected)
   return (
     <article className={`product-row ${selected ? 'is-selected' : ''}`} data-testid={`product-${product.id}`}>
@@ -6,6 +6,7 @@ export default function ProductRow({ product, entry, onToggle, onQuantity, onUpd
         <input type="checkbox" checked={selected} onChange={onToggle} />
         <span className="custom-checkbox" aria-hidden="true">✓</span><span className="product-name">{product.name}</span>
       </label>
+      {product.custom && <div className="custom-item-actions"><button type="button" aria-label={`Editar ${product.name}`} onClick={onEdit}>Editar</button><button type="button" aria-label={`Eliminar ${product.name}`} onClick={onDelete}>Eliminar</button></div>}
       {selected && (
         <div className="product-details">
           <div className="quantity-control"><span>Cantidad</span><div className="stepper">
